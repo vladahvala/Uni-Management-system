@@ -815,7 +815,7 @@ FROM Пара
 WHERE IsDeleted = 0;
 
 
--- Тригери
+-- 5. Triggers
 
 -- перевіряє зайнятість кабінету для пари
 CREATE TRIGGER CheckCabinetAvailability
@@ -1020,23 +1020,6 @@ BEGIN
     END IF;
 END;
 
-CREATE TRIGGER CheckDirectorUniversity
-BEFORE INSERT ON Директор
-FOR EACH ROW
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM Унів
-        WHERE Дата = NEW.Дата
-          AND Час_початку = NEW.Час_початку
-          AND Номер_кабінету = NEW.Номер_кабінету
-          AND LOWER(Тип) = 'засідання'
-    ) THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Неможливо додати засідання: відповідний захід має бути типу "Засідання"';
-    END IF; 
-END;
-
 -- перевіряє, що директор належить до університету, який він керує
 CREATE TRIGGER CheckDirectorUniversity
 BEFORE INSERT ON Директор
@@ -1080,6 +1063,39 @@ BEGIN
     END IF;
 END;
 
+-- перевіряє, чи викаладач не веде кілька пар одночасно
+CREATE TRIGGER CheckTeacherDoubleBooking
+BEFORE INSERT ON Проведення_пар
+FOR EACH ROW
+BEGIN
+    DECLARE new_start TIME;
+    DECLARE new_end TIME;
+
+    -- отримуємо час початку та кінець нової пари
+    SELECT Час_початку, ADDTIME(Час_початку, SEC_TO_TIME(TIME_TO_SEC(Тривалість)*60))
+    INTO new_start, new_end
+    FROM Пара
+    WHERE Дата = NEW.Дата
+      AND Час_початку = NEW.Час_початку
+      AND Номер_кабінету = NEW.Номер_кабінету;
+
+    -- перевіряємо, чи викладач вже веде іншу пару в цей час
+    IF EXISTS (
+        SELECT 1
+        FROM Проведення_пар pp
+        JOIN Пара p ON pp.Дата = p.Дата 
+                   AND pp.Час_початку = p.Час_початку 
+                   AND pp.Номер_кабінету = p.Номер_кабінету
+        WHERE pp.Паспорт_викладача = NEW.Паспорт_викладача
+          AND NEW.Дата = pp.Дата
+          AND new_start < ADDTIME(p.Час_початку, SEC_TO_TIME(TIME_TO_SEC(p.Тривалість)*60))
+          AND new_end > p.Час_початку
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Цей викладач уже веде іншу пару в цей час!';
+    END IF;
+END;
+
 -- перевірка чи дружні стосунки не з самим собою
 CREATE TRIGGER CheckFriendshipSelf
 BEFORE INSERT ON Дружні_стосунки
@@ -1091,4 +1107,130 @@ BEGIN
     END IF;
 END;
 
-SHOW TRIGGERS;
+
+-- 6. User-Defined Functions
+
+-- повертає кількість студентів у групі
+CREATE FUNCTION CountStudentsInGroup(group_id INT)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE student_count INT;
+
+    SELECT COUNT(*)
+    INTO student_count
+    FROM Студент
+    WHERE Номер_групи = group_id;
+
+    RETURN student_count;
+END;
+
+-- повертає кількість студентів певного курсу і університету
+CREATE FUNCTION StudentsInCourse(course_number INT, uni_id INT)
+RETURNS TEXT
+DETERMINISTIC
+BEGIN
+    DECLARE student_list TEXT;
+
+    SELECT GROUP_CONCAT(l.ПІБ SEPARATOR ', ')
+    INTO student_list
+    FROM Студент s
+    JOIN Людина l ON s.Паспорт = l.Паспорт
+    WHERE s.Курс_навчання = course_number
+      AND s.ID_університету = uni_id;
+
+    RETURN student_list;
+END;
+
+-- повертає список груп, які курує конкретний викладач
+CREATE FUNCTION GroupsOfTeacher(teacher_passport VARCHAR(20))
+RETURNS TEXT
+DETERMINISTIC
+BEGIN
+    DECLARE group_list TEXT;
+
+    SELECT GROUP_CONCAT(g.Номер SEPARATOR ', ')
+    INTO group_list
+    FROM Група g
+    WHERE g.Паспорт_викладача = teacher_passport;
+
+    RETURN group_list;
+END;
+
+-- Припустимо, у нас є група з номером 101, і викладач з паспортом 'AB123456'
+UPDATE Група
+SET Паспорт_викладача = 'GG123123'
+WHERE Номер = 101;
+
+-- повертає список пар, які проводить конкретний викладач
+CREATE FUNCTION LessonsOfTeacher(teacher_passport VARCHAR(20))
+RETURNS TEXT
+DETERMINISTIC
+BEGIN
+    DECLARE lessons_list TEXT;
+
+    SELECT GROUP_CONCAT(
+             CONCAT('Дата: ', Дата, ', Час: ', Час_початку, ', Кабінет: ', Номер_кабінету)
+             SEPARATOR '; '
+           )
+    INTO lessons_list
+    FROM Проведення_пар
+    WHERE Паспорт_викладача = teacher_passport;
+
+    RETURN lessons_list;
+END;
+
+-- повертає список заходів певного типу у певний проміжок часу
+CREATE FUNCTION EventsByTypeRange(
+    type VARCHAR(50),
+    date_start DATE,
+    date_end DATE
+)
+RETURNS TEXT
+DETERMINISTIC
+BEGIN
+    DECLARE events_list TEXT;
+
+    SELECT GROUP_CONCAT(
+               CONCAT('Дата: ', Дата, ', Час: ', Час_початку, ', Кабінет: ', Номер_кабінету)
+               SEPARATOR '; '
+           )
+    INTO events_list
+    FROM Захід
+    WHERE LOWER(Тип) = LOWER(type)
+      AND Дата BETWEEN date_start AND date_end;
+
+    RETURN events_list;
+END;
+
+-- Список персоналу університету
+CREATE FUNCTION StaffByUniversity(uni_id INT)
+RETURNS TEXT
+DETERMINISTIC
+BEGIN
+    DECLARE staff_list TEXT;
+
+    SELECT GROUP_CONCAT(CONCAT('Паспорт: ', Паспорт, ', ПІБ: ', ПІБ)
+             SEPARATOR '; ')
+    INTO staff_list
+    FROM Член_персоналу cp
+    JOIN Людина l ON cp.Паспорт = l.Паспорт
+    WHERE cp.ID_університету = uni_id;
+
+    RETURN staff_list;
+END;
+
+-- середня зарплата по університету
+CREATE FUNCTION AverageSalary(uni_id INT)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE avg_salary DECIMAL(10,2);
+
+    SELECT AVG(Зарплата)
+    INTO avg_salary
+    FROM Член_персоналу
+    WHERE ID_університету = uni_id;
+
+    RETURN avg_salary;
+END;
