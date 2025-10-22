@@ -568,3 +568,247 @@ INSERT INTO Відвідування (Паспорт, Дата, Час_поча�
 ('EE112233', '2025-10-24', '10:00:00', 201),
 ('AA123456', '2025-10-25', '09:00:00', 101),
 ('BB987654', '2025-10-25', '11:00:00', 102);
+
+
+-- 4. Механізм soft delete
+
+-- Студент
+ALTER TABLE Студент
+ADD COLUMN IsDeleted TINYINT(1) NOT NULL DEFAULT 0;
+
+ALTER TABLE Студент
+ADD COLUMN UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ADD COLUMN UpdatedBy VARCHAR(100) NULL;
+
+DROP PROCEDURE IF EXISTS DeleteStudent;
+
+CREATE PROCEDURE DeleteStudent(IN pPassport VARCHAR(20), IN pUser VARCHAR(100))
+BEGIN
+    UPDATE Студент
+    SET IsDeleted = 1,
+        UpdatedAt = NOW(),
+        UpdatedBy = pUser
+    WHERE Паспорт = pPassport;
+END;
+
+DROP PROCEDURE IF EXISTS RestoreStudent;
+
+CREATE PROCEDURE RestoreStudent(IN pPassport VARCHAR(20), IN pUser VARCHAR(100))
+BEGIN
+    UPDATE Студент
+    SET IsDeleted = 0,
+        UpdatedAt = NOW(),
+        UpdatedBy = pUser
+    WHERE Паспорт = pPassport;
+END;
+
+CREATE VIEW ActiveStudents AS
+SELECT *
+FROM Студент
+WHERE IsDeleted = 0;
+
+
+-- Член персоналу
+ALTER TABLE Член_персоналу
+ADD COLUMN IsDeleted TINYINT(1) NOT NULL DEFAULT 0;
+
+ALTER TABLE Член_персоналу
+ADD COLUMN UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ADD COLUMN UpdatedBy VARCHAR(100) NULL;
+
+
+DROP PROCEDURE IF EXISTS DeleteStaff;
+
+
+CREATE PROCEDURE DeleteStaff(IN pPassport VARCHAR(20), IN pUser VARCHAR(100))
+BEGIN
+    UPDATE Член_персоналу
+    SET IsDeleted = 1,
+        UpdatedAt = NOW(),
+        UpdatedBy = pUser
+    WHERE Паспорт = pPassport;
+END;
+
+
+DROP PROCEDURE IF EXISTS RestoreStaff;
+
+CREATE PROCEDURE RestoreStaff(IN pPassport VARCHAR(20), IN pUser VARCHAR(100))
+BEGIN
+    UPDATE Член_персоналу
+    SET IsDeleted = 0,
+        UpdatedAt = NOW(),
+        UpdatedBy = pUser
+    WHERE Паспорт = pPassport;
+END;
+
+
+CREATE OR REPLACE VIEW ActiveStaff AS
+SELECT *
+FROM Член_персоналу
+WHERE IsDeleted = 0;
+
+
+-- Група
+ALTER TABLE Група
+ADD COLUMN IsDeleted TINYINT(1) NOT NULL DEFAULT 0;
+
+ALTER TABLE Група
+ADD COLUMN UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ADD COLUMN UpdatedBy VARCHAR(100) NULL;
+
+DROP PROCEDURE IF EXISTS DeleteGroup;
+
+CREATE PROCEDURE DeleteGroup(IN pGroupNumber INT, IN pUser VARCHAR(100))
+BEGIN
+    UPDATE Група
+    SET IsDeleted = 1,
+        UpdatedAt = NOW(),
+        UpdatedBy = pUser
+    WHERE Номер = pGroupNumber;
+END;
+
+
+DROP PROCEDURE IF EXISTS RestoreGroup;
+
+CREATE PROCEDURE RestoreGroup(IN pGroupNumber INT, IN pUser VARCHAR(100))
+BEGIN
+    UPDATE Група
+    SET IsDeleted = 0,
+        UpdatedAt = NOW(),
+        UpdatedBy = pUser
+    WHERE Номер = pGroupNumber;
+END;
+
+
+CREATE VIEW ActiveGroups AS
+SELECT *
+FROM Група
+WHERE IsDeleted = 0;
+
+
+-- Кабінет
+ALTER TABLE Кабінет
+ADD COLUMN IsDeleted TINYINT(1) NOT NULL DEFAULT 0;
+
+ALTER TABLE Кабінет
+ADD COLUMN UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ADD COLUMN UpdatedBy VARCHAR(100) NULL;
+
+DROP PROCEDURE IF EXISTS DeleteCabinet;
+
+CREATE PROCEDURE DeleteCabinet(IN pCabinetNumber INT, IN pUser VARCHAR(100))
+BEGIN
+    UPDATE Кабінет
+    SET IsDeleted = 1,
+        UpdatedAt = NOW(),
+        UpdatedBy = pUser
+    WHERE Номер = pCabinetNumber;
+END;
+
+
+DROP PROCEDURE IF EXISTS RestoreCabinet;
+
+CREATE PROCEDURE RestoreCabinet(IN pCabinetNumber INT, IN pUser VARCHAR(100))
+BEGIN
+    UPDATE Кабінет
+    SET IsDeleted = 0,
+        UpdatedAt = NOW(),
+        UpdatedBy = pUser
+    WHERE Номер = pCabinetNumber;
+END;
+
+
+CREATE VIEW ActiveCabinets AS
+SELECT *
+FROM Кабінет
+WHERE IsDeleted = 0;
+
+
+-- Захід
+ALTER TABLE Захід
+ADD COLUMN IsDeleted TINYINT(1) NOT NULL DEFAULT 0;
+
+ALTER TABLE Захід
+ADD COLUMN UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ADD COLUMN UpdatedBy VARCHAR(100) NULL;
+
+DROP PROCEDURE IF EXISTS DeleteEvent;
+
+CREATE PROCEDURE DeleteEvent(IN pDate DATE, IN pTime TIME, IN pCabinet INT, IN pUser VARCHAR(100))
+BEGIN
+    UPDATE Захід
+    SET IsDeleted = 1,
+        UpdatedAt = NOW(),
+        UpdatedBy = pUser
+    WHERE Дата = pDate
+      AND Час_початку = pTime
+      AND Номер_кабінету = pCabinet;
+END;
+
+DROP PROCEDURE IF EXISTS RestoreEvent;
+
+CREATE PROCEDURE RestoreEvent(IN pDate DATE, IN pTime TIME, IN pCabinet INT, IN pUser VARCHAR(100))
+BEGIN
+    UPDATE Захід
+    SET IsDeleted = 0,
+        UpdatedAt = NOW(),
+        UpdatedBy = pUser
+    WHERE Дата = pDate
+      AND Час_початку = pTime
+      AND Номер_кабінету = pCabinet;
+END;
+
+CREATE VIEW ActiveEvents AS
+SELECT *
+FROM Захід
+WHERE IsDeleted = 0;
+
+
+-- Пара
+ALTER TABLE Пара
+ADD COLUMN IsDeleted TINYINT(1) NOT NULL DEFAULT 0;
+
+ALTER TABLE Пара
+ADD COLUMN UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ADD COLUMN UpdatedBy VARCHAR(100) NULL;
+
+DROP PROCEDURE IF EXISTS DeleteClass;
+
+CREATE PROCEDURE DeleteClass(
+    IN pDate DATE,
+    IN pTime TIME,
+    IN pCabinet INT,
+    IN pUser VARCHAR(100)
+)
+BEGIN
+    UPDATE Пара
+    SET IsDeleted = 1,
+        UpdatedAt = NOW(),
+        UpdatedBy = pUser
+    WHERE Дата = pDate
+      AND Час_початку = pTime
+      AND Номер_кабінету = pCabinet;
+END;
+
+DROP PROCEDURE IF EXISTS RestoreClass;
+
+CREATE PROCEDURE RestoreClass(
+    IN pDate DATE,
+    IN pTime TIME,
+    IN pCabinet INT,
+    IN pUser VARCHAR(100)
+)
+BEGIN
+    UPDATE Пара
+    SET IsDeleted = 0,
+        UpdatedAt = NOW(),
+        UpdatedBy = pUser
+    WHERE Дата = pDate
+      AND Час_початку = pTime
+      AND Номер_кабінету = pCabinet;
+END;
+
+CREATE VIEW ActiveClasses AS
+SELECT *
+FROM Пара
+WHERE IsDeleted = 0;
