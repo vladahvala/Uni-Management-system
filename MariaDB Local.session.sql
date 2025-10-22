@@ -1107,6 +1107,113 @@ BEGIN
     END IF;
 END;
 
+-- неможливо soft delete викладача, якщо він куратор групи або проводить пари
+CREATE TRIGGER CheckTeacherSoftDelete
+BEFORE UPDATE ON Член_персоналу
+FOR EACH ROW
+BEGIN
+    -- перевіряємо, що оновлюється викладач
+    IF EXISTS (SELECT 1 FROM Викладач WHERE Паспорт = OLD.Паспорт) THEN
+        IF NEW.IsDeleted = 1 AND OLD.IsDeleted = 0 THEN
+            -- Перевірка кураторства
+            IF EXISTS (
+                SELECT 1
+                FROM Група
+                WHERE Паспорт_викладача = OLD.Паспорт
+                  AND IsDeleted = 0
+            ) THEN
+                SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Неможливо видалити викладача: він куратор групи';
+            END IF;
+
+            -- Перевірка проведення пар
+            IF EXISTS (
+                SELECT 1
+                FROM Проведення_пар
+                WHERE Паспорт_викладача = OLD.Паспорт
+                  AND IsDeleted = 0
+            ) THEN
+                SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Неможливо видалити викладача: він проводить пари';
+            END IF;
+        END IF;
+    END IF;
+END;
+
+-- не можна видаляти групу, якщо є активні студенти/викладач/пари
+CREATE TRIGGER CheckGroupSoftDelete
+BEFORE UPDATE ON Група
+FOR EACH ROW
+BEGIN
+    IF NEW.IsDeleted = 1 AND OLD.IsDeleted = 0 THEN
+        -- Перевірка студентів
+        IF EXISTS (
+            SELECT 1
+            FROM Студент
+            WHERE ID_групи = OLD.Номер
+              AND IsDeleted = 0
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Неможливо видалити групу: є активні студенти';
+        END IF;
+
+        -- Перевірка викладача
+        IF EXISTS (
+            SELECT 1
+            FROM Група g
+            JOIN Член_персоналу cp ON g.Паспорт_викладача = cp.Паспорт
+            WHERE g.Номер = OLD.Номер
+              AND cp.IsDeleted = 0
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Неможливо видалити групу: у групи є активний викладач';
+        END IF;
+
+        -- Перевірка пар
+        IF EXISTS (
+            SELECT 1
+            FROM Пара
+            WHERE ID_групи = OLD.Номер
+              AND IsDeleted = 0
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Неможливо видалити групу: є активні пари';
+        END IF;
+    END IF;
+END;
+
+-- не можна видаляти кабінет, якщо є активні пари/заходи 
+CREATE TRIGGER CheckCabinetSoftDelete
+BEFORE UPDATE ON Кабінет
+FOR EACH ROW
+BEGIN
+    IF NEW.IsDeleted = 1 AND OLD.IsDeleted = 0 THEN
+
+        -- Перевірка пар
+        IF EXISTS (
+            SELECT 1
+            FROM Пара
+            WHERE Номер_кабінету = OLD.Номер
+              AND IsDeleted = 0
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Неможливо видалити кабінет: є активні пари';
+        END IF;
+
+        -- Перевірка заходів
+        IF EXISTS (
+            SELECT 1
+            FROM Захід
+            WHERE Номер_кабінету = OLD.Номер
+            AND IsDeleted = 0
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Неможливо видалити кабінет: є активні заходи';
+        END IF;
+
+    END IF;
+END;
+
 
 -- 6. User-Defined Functions
 
