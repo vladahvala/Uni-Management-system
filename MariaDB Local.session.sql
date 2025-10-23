@@ -669,19 +669,31 @@ JOIN Людина l ON s.Паспорт = l.Паспорт
 JOIN Університет u ON s.ID_університету = u.ID
 WHERE s.IsDeleted = 0;
 
+CREATE OR REPLACE VIEW StudentDetails AS 
+SELECT 
+    s.Паспорт, 
+    l.ПІБ, 
+    s.Курс_навчання, 
+    s.Форма_навчання, 
+    g.Номер AS Група, 
+    u.ID AS Університет_ID, 
+    u.Назва AS Університет 
+FROM Студент s 
+JOIN Людина l ON s.Паспорт = l.Паспорт 
+JOIN Група g ON s.Номер_групи = g.Номер 
+JOIN Університет u ON s.ID_університету = u.ID;
+
 
 -- Член персоналу
-ALTER TABLE Член_персоналу
-ADD COLUMN IsDeleted TINYINT(1) NOT NULL DEFAULT 0;
 
+-- ---------------------- Додаткові колонки ----------------------
 ALTER TABLE Член_персоналу
+ADD COLUMN IsDeleted TINYINT(1) NOT NULL DEFAULT 0,
 ADD COLUMN UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 ADD COLUMN UpdatedBy VARCHAR(100) NULL;
 
-
+-- ---------------------- Видалення ----------------------
 DROP PROCEDURE IF EXISTS DeleteStaff;
-
-
 CREATE PROCEDURE DeleteStaff(IN pPassport VARCHAR(20), IN pUser VARCHAR(100))
 BEGIN
     UPDATE Член_персоналу
@@ -691,9 +703,8 @@ BEGIN
     WHERE Паспорт = pPassport;
 END;
 
-
+-- ---------------------- Відновлення ----------------------
 DROP PROCEDURE IF EXISTS RestoreStaff;
-
 CREATE PROCEDURE RestoreStaff(IN pPassport VARCHAR(20), IN pUser VARCHAR(100))
 BEGIN
     UPDATE Член_персоналу
@@ -703,19 +714,82 @@ BEGIN
     WHERE Паспорт = pPassport;
 END;
 
+-- ---------------------- Додавання ----------------------
+DROP PROCEDURE IF EXISTS AddStaff;
+CREATE PROCEDURE AddStaff(
+    IN pPassport VARCHAR(20),
+    IN pPIB VARCHAR(255),
+    IN pSalary DECIMAL(10,2),
+    IN pUniversityID INT,
+    IN pUser VARCHAR(100)
+)
+BEGIN
+    -- 1. Додаємо людину
+    INSERT INTO Людина (Паспорт, ПІБ)
+    VALUES (pPassport, pPIB);
+
+    -- 2. Додаємо члена персоналу
+    INSERT INTO Член_персоналу (Паспорт, Зарплата, ID_університету, UpdatedBy)
+    VALUES (pPassport, pSalary, pUniversityID, pUser);
+END;
+
+-- ---------------------- Оновлення ----------------------
+DROP PROCEDURE IF EXISTS UpdateStaff;
+CREATE PROCEDURE UpdateStaff(
+    IN pPassport VARCHAR(20),
+    IN pSalary DECIMAL(10,2),
+    IN pUniversityID INT,
+    IN pUser VARCHAR(100)
+)
+BEGIN
+    UPDATE Член_персоналу
+    SET Зарплата = pSalary,
+        ID_університету = pUniversityID,
+        UpdatedAt = NOW(),
+        UpdatedBy = pUser
+    WHERE Паспорт = pPassport;
+END;
+
+-- ---------------------- Отримання ----------------------
 DROP PROCEDURE IF EXISTS GetAllStaff;
 CREATE PROCEDURE GetAllStaff()
 BEGIN
-    SELECT *
-    FROM Член_персоналу
-    WHERE IsDeleted = 0; 
+    SELECT * FROM ActiveStaff;
 END;
 
+DROP PROCEDURE IF EXISTS GetStaffByPassport;
+CREATE PROCEDURE GetStaffByPassport(IN pPassport VARCHAR(20))
+BEGIN
+    SELECT * FROM ActiveStaff WHERE Паспорт = pPassport;
+END;
 
+-- ---------------------- VIEW для активних членів персоналу ----------------------
 CREATE OR REPLACE VIEW ActiveStaff AS
-SELECT *
-FROM Член_персоналу
-WHERE IsDeleted = 0;
+SELECT 
+    s.Паспорт,
+    l.ПІБ,
+    s.Зарплата,
+    g.Номер AS Кабінет, 
+    u.Назва AS Університет
+FROM Член_персоналу s
+JOIN Людина l ON s.Паспорт = l.Паспорт
+JOIN Кабінет g ON s.Номер_кабінету = g.Номер 
+JOIN Університет u ON s.ID_університету = u.ID
+WHERE s.IsDeleted = 0;
+
+CREATE OR REPLACE VIEW StaffDetails AS 
+SELECT 
+    s.Паспорт, 
+    l.ПІБ, 
+    s.Зарплата, 
+    g.Номер AS Кабінет, 
+    u.ID AS Університет_ID, 
+    u.Назва AS Університет 
+FROM Член_персоналу s 
+JOIN Людина l ON s.Паспорт = l.Паспорт 
+JOIN Кабінет g ON s.Номер_кабінету = g.Номер 
+JOIN Університет u ON s.ID_університету = u.ID;
+
 
 
 -- Група
@@ -749,11 +823,69 @@ BEGIN
     WHERE Номер = pGroupNumber;
 END;
 
+-- Додавання групи
+DROP PROCEDURE IF EXISTS AddGroup;
+CREATE PROCEDURE AddGroup(
+    IN pNumber INT,
+    IN pStudentCount INT,
+    IN pSpecialty VARCHAR(100),
+    IN pUniversityID INT,
+    IN pUser VARCHAR(100)
+)
+BEGIN
+    INSERT INTO Група (Номер, Кількість_студентів, Спеціальність, ID_університету, UpdatedBy)
+    VALUES (pNumber, pStudentCount, pSpecialty, pUniversityID, pUser);
+END;
 
-CREATE VIEW ActiveGroups AS
-SELECT *
-FROM Група
-WHERE IsDeleted = 0;
+-- Оновлення групи
+DROP PROCEDURE IF EXISTS UpdateGroup;
+CREATE PROCEDURE UpdateGroup(
+    IN pNumber INT,
+    IN pStudentCount INT,
+    IN pSpecialty VARCHAR(100),
+    IN pUniversityID INT,
+    IN pUser VARCHAR(100)
+)
+BEGIN
+    UPDATE Група
+    SET Кількість_студентів = pStudentCount,
+        Спеціальність = pSpecialty,
+        ID_університету = pUniversityID,
+        UpdatedAt = NOW(),
+        UpdatedBy = pUser
+    WHERE Номер = pNumber;
+END;
+
+CREATE OR REPLACE VIEW ActiveGroups AS
+SELECT 
+    g.Номер,
+    g.Кількість_студентів,
+    g.Спеціальність,
+    u.ID AS Університет_ID,
+    u.Назва AS Університет,
+    g.UpdatedAt,
+    g.UpdatedBy
+FROM Група g
+JOIN Університет u ON g.ID_університету = u.ID
+WHERE g.IsDeleted = 0;
+
+CREATE OR REPLACE VIEW GroupDetails AS
+SELECT 
+    g.Номер,
+    g.Кількість_студентів,
+    g.Спеціальність,
+    u.ID AS Університет_ID,
+    u.Назва AS Університет,
+    v.Паспорт,
+    l.ПІБ AS Викладач,
+    g.UpdatedAt,
+    g.UpdatedBy
+FROM Група g
+JOIN Університет u ON g.ID_університету = u.ID
+LEFT JOIN Викладач v ON g.Паспорт_викладача = v.Паспорт
+LEFT JOIN Людина l ON v.Паспорт = l.Паспорт
+WHERE g.IsDeleted = 0;
+
 
 
 -- Кабінет
