@@ -823,6 +823,13 @@ BEGIN
     WHERE Номер = pGroupNumber;
 END;
 
+-- ---------------------- Отримання ----------------------
+DROP PROCEDURE IF EXISTS GetAllGroups;
+CREATE PROCEDURE GetAllGroups()
+BEGIN
+    SELECT * FROM ActiveGroups;
+END;
+
 -- Додавання групи
 DROP PROCEDURE IF EXISTS AddGroup;
 CREATE PROCEDURE AddGroup(
@@ -854,6 +861,12 @@ BEGIN
         UpdatedAt = NOW(),
         UpdatedBy = pUser
     WHERE Номер = pNumber;
+END;
+
+DROP PROCEDURE IF EXISTS GetGroupByNumber;
+CREATE PROCEDURE GetGroupByNumber(IN pNum INT)
+BEGIN
+    SELECT * FROM GroupDetails WHERE Номер = pNum;
 END;
 
 CREATE OR REPLACE VIEW ActiveGroups AS
