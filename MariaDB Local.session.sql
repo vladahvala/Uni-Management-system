@@ -603,10 +603,71 @@ BEGIN
     WHERE Паспорт = pPassport;
 END;
 
-CREATE VIEW ActiveStudents AS
-SELECT *
-FROM Студент
-WHERE IsDeleted = 0;
+DROP PROCEDURE IF EXISTS AddStudent;
+CREATE PROCEDURE AddStudent(
+    IN pPassport VARCHAR(20),
+    IN pPIB VARCHAR(255),
+    IN pGroupNumber INT,
+    IN pCourse INT,
+    IN pForm VARCHAR(50),
+    IN pUniversityID INT,
+    IN pUser VARCHAR(100)
+)
+BEGIN
+    -- 1. Додаємо людину
+    INSERT INTO Людина (Паспорт, ПІБ)
+    VALUES (pPassport, pPIB);
+
+    -- 2. Додаємо студента
+    INSERT INTO Студент (Паспорт, Курс_навчання, Форма_навчання, Номер_групи, ID_університету, UpdatedBy)
+    VALUES (pPassport, pCourse, pForm, pGroupNumber, pUniversityID, pUser);
+END;
+
+
+DROP PROCEDURE IF EXISTS UpdateStudent;
+CREATE PROCEDURE UpdateStudent(
+    IN pPassport VARCHAR(20),
+    IN pCourse INT,
+    IN pForm VARCHAR(50),
+    IN pGroupNumber INT,
+    IN pUser VARCHAR(100)
+)
+BEGIN
+    UPDATE Студент
+    SET Курс_навчання = pCourse,
+        Форма_навчання = pForm,
+        Номер_групи = pGroupNumber,
+        UpdatedAt = NOW(),
+        UpdatedBy = pUser
+    WHERE Паспорт = pPassport;
+END;
+
+
+DROP PROCEDURE IF EXISTS GetAllStudents;
+CREATE PROCEDURE GetAllStudents()
+BEGIN
+    SELECT * FROM StudentDetails;
+END;
+
+DROP PROCEDURE IF EXISTS GetStudentByPassport;
+CREATE PROCEDURE GetStudentByPassport(IN pPassport VARCHAR(20))
+BEGIN
+    SELECT * FROM StudentDetails WHERE Паспорт = pPassport;
+END;
+
+
+CREATE OR REPLACE VIEW ActiveStudents AS
+SELECT 
+    s.Паспорт,
+    l.ПІБ,
+    s.Курс_навчання,
+    s.Форма_навчання,
+    s.Номер_групи,
+    u.Назва AS Університет
+FROM Студент s
+JOIN Людина l ON s.Паспорт = l.Паспорт
+JOIN Університет u ON s.ID_університету = u.ID
+WHERE s.IsDeleted = 0;
 
 
 -- Член персоналу
@@ -640,6 +701,14 @@ BEGIN
         UpdatedAt = NOW(),
         UpdatedBy = pUser
     WHERE Паспорт = pPassport;
+END;
+
+DROP PROCEDURE IF EXISTS GetAllStaff;
+CREATE PROCEDURE GetAllStaff()
+BEGIN
+    SELECT *
+    FROM Член_персоналу
+    WHERE IsDeleted = 0; 
 END;
 
 
