@@ -1,6 +1,7 @@
 from repositories.student_repository import StudentRepository, Student
 from repositories.staff_repository import StaffRepository, Staff
 from repositories.group_repository import GroupRepository, Group
+from repositories.cabinet_repository import CabinetRepository, Cabinet
 import mysql.connector
 
 def create_connection():
@@ -16,6 +17,7 @@ def main():
     student_repo = StudentRepository(connection)
     staff_repo = StaffRepository(connection)
     group_repo = GroupRepository(connection)
+    cabinet_repo = CabinetRepository(connection)
 
     #---------------------------------Student------------------------------
     # # --- 1. Тест get_all_students ---
@@ -187,6 +189,44 @@ def main():
     # active_groups = group_repo.get_active_groups()
     # for g in active_groups:
     #     print(f"Група {g['Номер']}: {g['Спеціальність']}, Студентів: {g['Кількість_студентів']}, Університет: {g.get('Університет')}")
+
+
+    #---------------------------------Cabinet------------------------------
+    # --- 1. Тест get_all_cabinets ---
+    print("== Усі кабінети ==")
+    cabinets = cabinet_repo.get_all_cabinets()
+    for c in cabinets:
+        print(f"Номер: {c.number}, Поверх: {c.floor}, Кількість місць: {c.capacity}")
+
+    # --- 2. Тест get_cabinet_by_number ---
+    print("\n== Пошук кабінету ==")
+    cabinet_number = 101  # заміни на існуючий номер
+    cab = cabinet_repo.get_cabinet_by_number(cabinet_number)
+    if cab:
+        print(f"Знайдено: Кабінет {cab.number}, поверх {cab.floor}")
+
+        # --- 3. Тест get_cabinet_details ---
+        print("\n== Деталі кабінету ==")
+        details = cabinet_repo.get_cabinet_details(cabinet_number)
+        if details:
+            print("Номер:", details.number)
+            print("Поверх:", details.floor)
+            print("Кількість місць:", details.capacity)
+            if details.university_name:
+                print("Університет:", details.university_name)
+            if hasattr(details, 'responsible_person') and details.responsible_person:
+                print("Відповідальний співробітник:", details.responsible_person)
+        else:
+            print("Деталі кабінету не знайдено.")
+    else:
+        print("Кабінет не знайдено.")
+
+    # --- 4. Тест get_active_cabinets ---
+    print("\n== Активні кабінети ==")
+    active_cabinets = cabinet_repo.get_active_cabinets()
+    for c in active_cabinets:
+        print(f"Номер: {c['Номер']}, Поверх: {c['Поверх']}, Кількість місць: {c.get('Кількість_місць')}")
+
 
     connection.close()
 

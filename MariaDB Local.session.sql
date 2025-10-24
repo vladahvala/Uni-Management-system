@@ -902,6 +902,7 @@ WHERE g.IsDeleted = 0;
 
 
 -- Кабінет
+-- ===== Додаткові колонки для логічного видалення та аудиту =====
 ALTER TABLE Кабінет
 ADD COLUMN IsDeleted TINYINT(1) NOT NULL DEFAULT 0;
 
@@ -909,8 +910,41 @@ ALTER TABLE Кабінет
 ADD COLUMN UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 ADD COLUMN UpdatedBy VARCHAR(100) NULL;
 
-DROP PROCEDURE IF EXISTS DeleteCabinet;
+-- ====== Додавання кабінету ======
+DROP PROCEDURE IF EXISTS AddCabinet;
+CREATE PROCEDURE AddCabinet(
+    IN pNumber INT,
+    IN pBuilding VARCHAR(100),
+    IN pFloor INT,
+    IN pCapacity INT,
+    IN pUser VARCHAR(100)
+)
+BEGIN
+    INSERT INTO Кабінет (Номер, Будівля, Поверх, Вмістимість, UpdatedBy)
+    VALUES (pNumber, pBuilding, pFloor, pCapacity, pUser);
+END;
 
+-- ====== Оновлення кабінету ======
+DROP PROCEDURE IF EXISTS UpdateCabinet;
+CREATE PROCEDURE UpdateCabinet(
+    IN pNumber INT,
+    IN pBuilding VARCHAR(100),
+    IN pFloor INT,
+    IN pCapacity INT,
+    IN pUser VARCHAR(100)
+)
+BEGIN
+    UPDATE Кабінет
+    SET Будівля = pBuilding,
+        Поверх = pFloor,
+        Вмістимість = pCapacity,
+        UpdatedAt = NOW(),
+        UpdatedBy = pUser
+    WHERE Номер = pNumber;
+END;
+
+-- ====== Логічне видалення ======
+DROP PROCEDURE IF EXISTS DeleteCabinet;
 CREATE PROCEDURE DeleteCabinet(IN pCabinetNumber INT, IN pUser VARCHAR(100))
 BEGIN
     UPDATE Кабінет
@@ -920,9 +954,8 @@ BEGIN
     WHERE Номер = pCabinetNumber;
 END;
 
-
+-- ====== Відновлення ======
 DROP PROCEDURE IF EXISTS RestoreCabinet;
-
 CREATE PROCEDURE RestoreCabinet(IN pCabinetNumber INT, IN pUser VARCHAR(100))
 BEGIN
     UPDATE Кабінет
@@ -932,11 +965,46 @@ BEGIN
     WHERE Номер = pCabinetNumber;
 END;
 
+-- ====== Отримання всіх кабінетів ======
+DROP PROCEDURE IF EXISTS GetAllCabinets;
+CREATE PROCEDURE GetAllCabinets()
+BEGIN
+    SELECT *
+    FROM Кабінет
+    WHERE IsDeleted = 0;
+END;
 
-CREATE VIEW ActiveCabinets AS
+-- ====== Отримання кабінету за номером ======
+DROP PROCEDURE IF EXISTS GetCabinetByNumber;
+CREATE PROCEDURE GetCabinetByNumber(IN pCabinetNumber INT)
+BEGIN
+    SELECT *
+    FROM Кабінет
+    WHERE IsDeleted = 0
+      AND Номер = pCabinetNumber;
+END;
+
+-- ====== Активні кабінети ======
+CREATE OR REPLACE VIEW ActiveCabinets AS
 SELECT *
 FROM Кабінет
 WHERE IsDeleted = 0;
+
+-- ====== Деталі кабінету (з університетом і членом персоналу, якщо потрібно) ======
+CREATE OR REPLACE VIEW CabinetDetails AS
+SELECT 
+    c.Номер,
+    c.Поверх,
+    c.Кількість_місць,
+    u.ID AS Університет_ID,
+    u.Назва AS Університет,
+    l.ПІБ AS Відповідальний_співробітник
+FROM Кабінет c
+LEFT JOIN Університет u ON c.ID_університету = u.ID
+LEFT JOIN Член_персоналу s ON c.Номер = s.Номер_кабінету
+LEFT JOIN Людина l ON s.Паспорт = l.Паспорт
+WHERE c.IsDeleted = 0;
+
 
 
 -- Захід
