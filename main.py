@@ -3,6 +3,7 @@ from repositories.staff_repository import StaffRepository, Staff
 from repositories.group_repository import GroupRepository, Group
 from repositories.cabinet_repository import CabinetRepository, Cabinet
 from repositories.event_repository import EventRepository, Event
+from repositories.class_repository import ClassRepository, Class
 import mysql.connector
 from datetime import datetime, timedelta, date, time
 
@@ -21,7 +22,8 @@ def main():
     staff_repo = StaffRepository(connection)
     group_repo = GroupRepository(connection)
     cabinet_repo = CabinetRepository(connection)
-    event_repo = EventRepository(connection, current_user="test_user")
+    event_repo = EventRepository(connection)
+    class_repo = ClassRepository(connection)
 
     #---------------------------------Student------------------------------
     # # --- 1. Тест get_all_students ---
@@ -234,32 +236,66 @@ def main():
 
     #---------------------------------Events------------------------------
     # --- 1. Тест get_all_events ---
-    print("== Усі заходи ==")
-    events = event_repo.get_all_events()
-    for e in events:
-        print(f"{e.date} {e.start_time} | Кабінет: {e.cabinet_number} | Назва: {e.name} | Тип: {e.event_type} | Кінець: {e.end_time}")
+    # print("== Усі заходи ==")
+    # events = event_repo.get_all_events()
+    # for e in events:
+    #     print(f"{e.date} {e.start_time} | Кабінет: {e.cabinet_number} | Назва: {e.name} | Тип: {e.event_type} | Кінець: {e.end_time}")
 
-    # --- 2. Тест get_event_details ---
-    print("\n== Деталі заходу ==")
-    test_date = date(2025, 10, 23)          # постав свою дату
-    test_start_time = time(10, 0)            # час початку
-    test_cabinet = 101                       # номер кабінету
-    details = event_repo.get_event_details(test_date, test_start_time, test_cabinet)
-    if details:
-        print(f"Дата: {details.date}")
-        print(f"Час початку: {details.start_time}")
-        print(f"Кінець: {details.end_time}")
-        print(f"Кабінет: {details.cabinet_number}")
-        print(f"Тип: {details.event_type}")
-        print(f"Тривалість: {details.duration} хв")
-    else:
-        print("Деталі заходу не знайдено.")
+    # # --- 2. Тест get_event_details ---
+    # print("\n== Деталі заходу ==")
+    # test_date = date(2025, 10, 23)          # постав свою дату
+    # test_start_time = time(10, 0)            # час початку
+    # test_cabinet = 101                       # номер кабінету
+    # details = event_repo.get_event_details(test_date, test_start_time, test_cabinet)
+    # if details:
+    #     print(f"Дата: {details.date}")
+    #     print(f"Час початку: {details.start_time}")
+    #     print(f"Кінець: {details.end_time}")
+    #     print(f"Кабінет: {details.cabinet_number}")
+    #     print(f"Тип: {details.event_type}")
+    #     print(f"Тривалість: {details.duration} хв")
+    # else:
+    #     print("Деталі заходу не знайдено.")
 
-    # --- 6. Тест перегляду активних заходів ---
-    print("\n== Активні заходи ==")
-    active_events = event_repo.get_active_events()
-    for e in active_events:
-        print(f"{e['Дата']} {e['Час_початку']} | Кабінет: {e['Номер_кабінету']} | Назва: {e.get('Назва')} | Тип: {e.get('Тип')}")
+    # # --- 6. Тест перегляду активних заходів ---
+    # print("\n== Активні заходи ==")
+    # active_events = event_repo.get_active_events()
+    # for e in active_events:
+    #     print(f"{e['Дата']} {e['Час_початку']} | Кабінет: {e['Номер_кабінету']} | Назва: {e.get('Назва')} | Тип: {e.get('Тип')}")
+
+
+    #---------------------------------Classes------------------------------
+    # ====== 1. Тест get_all_classes ======
+    # print("== Усі активні пари ==")
+    # classes = class_repo.get_all_classes()
+    # for c in classes:
+    #     print(f"{c.date} {c.start_time} | Кабінет: {c.cabinet_number} | Предмет: {c.subject} | Кінець: {c.end_time}")
+
+    # # ====== 2. Тест get_class_details ======
+    # print("\n== Деталі пари ==")
+    # test_date = datetime(2025, 10, 23).date()
+    # test_start_time = time(9, 0)
+    # test_cabinet = 101
+    # details = class_repo.get_class_details(test_date, test_start_time, test_cabinet)
+    # if details:
+    #     print(f"Дата: {details['date']}")
+    #     print(f"Час початку: {details['start_time']}")
+    #     print(f"Кінець: {details['end_time']}")
+    #     print(f"Кабінет: {details['cabinet_number']}")
+    #     print(f"Предмет: {details['subject']}")
+    #     print(f"Тривалість: {details['duration']} хв")
+    #     print(f"Поверх кабінету: {details['cabinet_floor']}")
+    #     print(f"Кількість місць: {details['cabinet_capacity']}")
+    #     print(f"Університет: {details['university_name']} (ID: {details['university_id']})")
+    #     print(f"Викладач: {details['teacher']}")
+    # else:
+    #     print("Деталі пари не знайдено.")
+
+    # # ====== 6. Перевірка активних пар після відновлення ======
+    # classes = class_repo.get_all_classes()
+    # print("\n== Всі активні пари після відновлення ==")
+    # for c in classes:
+    #     print(f"{c.date} {c.start_time} | Кабінет: {c.cabinet_number} | Предмет: {c.subject} | Кінець: {c.end_time}")
 
 
     connection.close()

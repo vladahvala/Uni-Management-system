@@ -1142,10 +1142,8 @@ WHERE e.IsDeleted = 0;
 
 
 
-CALL AddEvent('2025-10-25', '10:00:00', 101, 'Лекція', 90, 'test_user');
-
-
 -- Пара
+-- ====== Додаткові колонки для логічного видалення та аудиту =====
 ALTER TABLE Пара
 ADD COLUMN IsDeleted TINYINT(1) NOT NULL DEFAULT 0;
 
@@ -1153,8 +1151,8 @@ ALTER TABLE Пара
 ADD COLUMN UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 ADD COLUMN UpdatedBy VARCHAR(100) NULL;
 
+-- ====== Логічне видалення пари =====
 DROP PROCEDURE IF EXISTS DeleteClass;
-
 CREATE PROCEDURE DeleteClass(
     IN pDate DATE,
     IN pTime TIME,
@@ -1171,8 +1169,8 @@ BEGIN
       AND Номер_кабінету = pCabinet;
 END;
 
+-- ====== Відновлення пари =====
 DROP PROCEDURE IF EXISTS RestoreClass;
-
 CREATE PROCEDURE RestoreClass(
     IN pDate DATE,
     IN pTime TIME,
@@ -1189,10 +1187,74 @@ BEGIN
       AND Номер_кабінету = pCabinet;
 END;
 
-CREATE VIEW ActiveClasses AS
+-- ====== Отримання всіх активних пар =====
+DROP PROCEDURE IF EXISTS GetAllClasses;
+CREATE PROCEDURE GetAllClasses()
+BEGIN
+    SELECT *
+    FROM Пара
+    WHERE IsDeleted = 0;
+END;
+
+-- ====== Додавання пари =====
+DROP PROCEDURE IF EXISTS AddClass;
+CREATE PROCEDURE AddClass(
+    IN pDate DATE,
+    IN pStartTime TIME,
+    IN pCabinet INT,
+    IN pSubject VARCHAR(50),
+    IN pDuration INT,
+    IN pUser VARCHAR(100)
+)
+BEGIN
+    INSERT INTO Пара (Дата, Час_початку, Номер_кабінету, Предмет, Тривалість, UpdatedBy)
+    VALUES (pDate, pStartTime, pCabinet, pSubject, pDuration, pUser);
+END;
+
+
+-- ====== Отримання пари за ключем (дата + час + кабінет) =====
+DROP PROCEDURE IF EXISTS GetClassByKey;
+CREATE PROCEDURE GetClassByKey(
+    IN pDate DATE,
+    IN pTime TIME,
+    IN pCabinet INT
+)
+BEGIN
+    SELECT *
+    FROM Пара
+    WHERE IsDeleted = 0
+      AND Дата = pDate
+      AND Час_початку = pTime
+      AND Номер_кабінету = pCabinet;
+END;
+
+-- ====== Активні пари (VIEW) =====
+CREATE OR REPLACE VIEW ActiveClasses AS
 SELECT *
 FROM Пара
 WHERE IsDeleted = 0;
+
+-- ====== Деталі пари =====
+CREATE OR REPLACE VIEW ClassDetails AS
+SELECT 
+    p.Дата,
+    p.Час_початку,
+    p.Номер_кабінету,
+    p.Предмет,
+    p.Тривалість,
+    c.Поверх AS Кабінет_поверх,
+    c.Кількість_місць AS Кількість_місць,
+    u.ID AS Університет_ID,
+    u.Назва AS Університет,
+    l.ПІБ AS Викладач
+FROM Пара p
+LEFT JOIN Кабінет c ON p.Номер_кабінету = c.Номер
+LEFT JOIN Університет u ON c.ID_університету = u.ID
+LEFT JOIN Член_персоналу s ON c.Номер = s.Номер_кабінету
+LEFT JOIN Людина l ON s.Паспорт = l.Паспорт
+WHERE p.IsDeleted = 0;
+
+
 
 
 -- 5. Triggers
