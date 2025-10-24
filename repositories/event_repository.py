@@ -80,6 +80,24 @@ class EventRepository:
             ])
             self.connection.commit()
 
+     # ===== Отримати захід за ключем (дата, час, кабінет) =====
+    def get_event_by_key(self, date, start_time, cabinet_number):
+        with self.connection.cursor(dictionary=True) as cursor:
+            cursor.callproc('GetEventByKey', [date, start_time, cabinet_number])
+            # Зберемо результати з курсора
+            for result in cursor.stored_results():
+                row = result.fetchone()
+                if row:
+                    return Event(
+                        row['Дата'],
+                        row['Час_початку'],
+                        row['Номер_кабінету'],
+                        row['Тип'],
+                        row['Тривалість'],
+                        True
+                    )
+            return None
+
     # ===== Логічно видалити =====
     def delete_event(self, date, start_time, cabinet_number):
         with self.connection.cursor() as cursor:
