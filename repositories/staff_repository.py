@@ -1,11 +1,12 @@
 class Staff:
     """Модель члена персоналу"""
-    def __init__(self, passport, pib, salary, cabinet, university):
+    def __init__(self, passport, pib, salary, cabinet, university_id, university_name):
         self.passport = passport
         self.pib = pib
         self.salary = salary
         self.cabinet = cabinet
-        self.university = university
+        self.university_id = university_id
+        self.university_name = university_name
 
 
 class StaffRepository:
@@ -27,6 +28,7 @@ class StaffRepository:
                         row['ПІБ'],
                         row['Зарплата'],
                         row['Кабінет'],
+                        row['Університет_ID'],
                         row['Університет']
                     ))
             return staff
@@ -39,10 +41,11 @@ class StaffRepository:
                 row = result.fetchone()
                 if row:
                     return Staff(
-                         row['Паспорт'],
+                        row['Паспорт'],
                         row['ПІБ'],
                         row['Зарплата'],
                         row['Кабінет'],
+                        row['Університет_ID'],
                         row['Університет']
                     )
             return None
@@ -55,9 +58,9 @@ class StaffRepository:
                 staff.passport,
                 staff.pib,
                 staff.salary,
-                staff.cabinet,
-                staff.university,      # тут передаємо ID університету
-                self.current_user        # хто додає
+                staff.university_id,  # ID університету
+                staff.cabinet,        # Номер кабінету
+                self.current_user
             ])
             self.connection.commit()
 
@@ -67,8 +70,9 @@ class StaffRepository:
             cursor.callproc('UpdateStaff', [
                 staff.passport,
                 staff.salary,
-                staff.cabinet,
-                self.current_user        # хто оновлює
+                staff.university_id,  # ID університету
+                staff.cabinet,        # Номер кабінету
+                self.current_user
             ])
             self.connection.commit()
 
@@ -91,12 +95,31 @@ class StaffRepository:
         query = "SELECT * FROM ActiveStaff"
         with self.connection.cursor(dictionary=True) as cursor:
             cursor.execute(query)
-            return cursor.fetchall()
-        
+            staff = []
+            for row in cursor.fetchall():
+                staff.append(Staff(
+                    row['Паспорт'],
+                    row['ПІБ'],
+                    row['Зарплата'],
+                    row['Кабінет'],
+                    row['Університет_ID'],
+                    row['Університет']
+                ))
+            return staff
+
     def get_staff_details(self, passport):
-        """Отримати детальну інформацію про члена персоанлу"""
+        """Отримати детальну інформацію про члена персоналу"""
         query = "SELECT * FROM StaffDetails WHERE Паспорт = %s"
         with self.connection.cursor(dictionary=True) as cursor:
             cursor.execute(query, (passport,))
-            return cursor.fetchone()
-
+            row = cursor.fetchone()
+            if row:
+                return Staff(
+                    row['Паспорт'],
+                    row['ПІБ'],
+                    row['Зарплата'],
+                    row['Кабінет'],
+                    row['Університет_ID'],
+                    row['Університет']
+                )
+            return None

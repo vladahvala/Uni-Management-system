@@ -1,12 +1,15 @@
+import mysql.connector
+
 class Cabinet:
     """Модель кабінету"""
-    def __init__(self, number, floor, capacity=None, university_id=None, university_name=None, is_active=True):
-        self.number = number                 
-        self.floor = floor                    
-        self.capacity = capacity             
-        self.university_id = university_id   
-        self.university_name = university_name  
-        self.is_active = is_active            
+    def __init__(self, number, floor, capacity=None, type=None, university_id=None, university_name=None, is_active=True):
+        self.number = number
+        self.floor = floor
+        self.capacity = capacity
+        self.type = type                  # Тип кабінету
+        self.university_id = university_id
+        self.university_name = university_name
+        self.is_active = is_active
 
 
 class CabinetRepository:
@@ -27,7 +30,8 @@ class CabinetRepository:
                         number=row['Номер'],
                         floor=row['Поверх'],
                         capacity=row.get('Кількість_місць'),
-                        university_id=None,
+                        type=row.get('Тип'),
+                        university_id=row.get('ID_університету'),
                         university_name=None,
                         is_active=row['IsDeleted'] == 0
                     ))
@@ -44,7 +48,8 @@ class CabinetRepository:
                         number=row['Номер'],
                         floor=row['Поверх'],
                         capacity=row.get('Кількість_місць'),
-                        university_id=None,
+                        type=row.get('Тип'),
+                        university_id=row.get('ID_університету'),
                         university_name=None,
                         is_active=row['IsDeleted'] == 0
                     )
@@ -56,9 +61,10 @@ class CabinetRepository:
         with self.connection.cursor() as cursor:
             cursor.callproc('AddCabinet', [
                 cabinet.number,
-                None,                   # немає building
                 cabinet.floor,
                 cabinet.capacity,
+                cabinet.type,
+                cabinet.university_id,
                 self.current_user
             ])
             self.connection.commit()
@@ -68,9 +74,10 @@ class CabinetRepository:
         with self.connection.cursor() as cursor:
             cursor.callproc('UpdateCabinet', [
                 cabinet.number,
-                None,                   # немає building
                 cabinet.floor,
                 cabinet.capacity,
+                cabinet.type,
+                cabinet.university_id,
                 self.current_user
             ])
             self.connection.commit()
@@ -94,7 +101,18 @@ class CabinetRepository:
         query = "SELECT * FROM ActiveCabinets"
         with self.connection.cursor(dictionary=True) as cursor:
             cursor.execute(query)
-            return cursor.fetchall()
+            return [
+                Cabinet(
+                    number=row['Номер'],
+                    floor=row['Поверх'],
+                    capacity=row.get('Кількість_місць'),
+                    type=row.get('Тип'),
+                    university_id=row.get('ID_університету'),
+                    university_name=None,
+                    is_active=True
+                )
+                for row in cursor.fetchall()
+            ]
 
     def get_cabinet_details(self, number):
         """Отримати детальну інформацію про кабінет (через view CabinetDetails)"""
@@ -107,6 +125,7 @@ class CabinetRepository:
                     number=row['Номер'],
                     floor=row['Поверх'],
                     capacity=row.get('Кількість_місць'),
+                    type=row.get('Тип'),
                     university_id=row.get('Університет_ID'),
                     university_name=row.get('Університет'),
                     is_active=True

@@ -4,6 +4,7 @@ from repositories.group_repository import GroupRepository, Group
 from repositories.cabinet_repository import CabinetRepository, Cabinet
 from repositories.event_repository import EventRepository, Event
 from repositories.class_repository import ClassRepository, Class
+from unit_of_work import UnitOfWork
 import mysql.connector
 from datetime import datetime, timedelta, date, time
 
@@ -296,6 +297,38 @@ def main():
     # print("\n== Всі активні пари після відновлення ==")
     # for c in classes:
     #     print(f"{c.date} {c.start_time} | Кабінет: {c.cabinet_number} | Предмет: {c.subject} | Кінець: {c.end_time}")
+
+
+
+
+    with UnitOfWork(connection, current_user="admin_user") as uow:
+        # Додаємо студента
+        # uow.students.add_student(Student("AЦ123456", "Іваненко Іван Іванович", 2, "денна", 102, 2))
+
+        # Додаємо групу
+        uow.groups.add_group(Group(106, 30, "Біологія", 2, "Федоренко Олег Андрійович"))
+
+        # Додаємо пару
+        new_class = Class(
+            date=datetime(2025, 10, 25).date(),
+            start_time=time(10, 0),
+            cabinet_number=101,
+            subject="Фізика",
+            duration=90
+        )
+        uow.classes.add_class(new_class)
+
+        # Додаємо подію
+        uow.events.add_event(Event(
+            date=datetime(2025, 10, 25).date(),
+            start_time=time(12, 0),
+            cabinet_number=102,
+            event_type="Лекція",
+            duration=60
+        ))
+
+        # Коміт всіх змін одразу
+        uow.commit()
 
 
     connection.close()

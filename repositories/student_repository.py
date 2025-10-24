@@ -1,19 +1,20 @@
 class Student:
     """Модель студента"""
-    def __init__(self, passport, pib, course, form, group_number, university):
+    def __init__(self, passport, pib, course, form, group_number, university_id, university_name):
         self.passport = passport
         self.pib = pib
         self.course = course
         self.form = form
         self.group_number = group_number
-        self.university = university
+        self.university_id = university_id
+        self.university_name = university_name
 
 
 class StudentRepository:
     """Repository для роботи зі студентами"""
     def __init__(self, connection, current_user="system_user"):
         self.connection = connection
-        self.current_user = current_user  # користувач, який робить зміни
+        self.current_user = current_user
 
     # ---------------------- Отримання студентів ----------------------
     def get_all_students(self):
@@ -29,6 +30,7 @@ class StudentRepository:
                         row['Курс_навчання'],
                         row['Форма_навчання'],
                         row['Група'],
+                        row['Університет_ID'],
                         row['Університет']
                     ))
             return students
@@ -46,6 +48,7 @@ class StudentRepository:
                         row['Курс_навчання'],
                         row['Форма_навчання'],
                         row['Група'],
+                        row['Університет_ID'],
                         row['Університет']
                     )
             return None
@@ -60,8 +63,8 @@ class StudentRepository:
                 student.group_number,
                 student.course,
                 student.form,
-                student.university,      # тут передаємо ID університету
-                self.current_user        # хто додає
+                student.university_id,   # ✅ передаємо ID, як очікує процедура
+                self.current_user
             ])
             self.connection.commit()
 
@@ -73,7 +76,7 @@ class StudentRepository:
                 student.course,
                 student.form,
                 student.group_number,
-                self.current_user        # хто оновлює
+                self.current_user
             ])
             self.connection.commit()
 
@@ -96,11 +99,33 @@ class StudentRepository:
         query = "SELECT * FROM ActiveStudents"
         with self.connection.cursor(dictionary=True) as cursor:
             cursor.execute(query)
-            return cursor.fetchall()
+            students = []
+            for row in cursor.fetchall():
+                students.append(Student(
+                    row['Паспорт'],
+                    row['ПІБ'],
+                    row['Курс_навчання'],
+                    row['Форма_навчання'],
+                    row['Номер_групи'],
+                    None,                # У цій view немає ID
+                    row['Університет']
+                ))
+            return students
 
     def get_student_details(self, passport):
         """Отримати детальну інформацію про студента"""
         query = "SELECT * FROM StudentDetails WHERE Паспорт = %s"
         with self.connection.cursor(dictionary=True) as cursor:
             cursor.execute(query, (passport,))
-            return cursor.fetchone()
+            row = cursor.fetchone()
+            if row:
+                return Student(
+                    row['Паспорт'],
+                    row['ПІБ'],
+                    row['Курс_навчання'],
+                    row['Форма_навчання'],
+                    row['Група'],
+                    row['Університет_ID'],
+                    row['Університет']
+                )
+            return None

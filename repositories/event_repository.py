@@ -2,20 +2,18 @@ from datetime import datetime, timedelta, time
 
 class Event:
     """Модель заходу"""
-    def __init__(self, date, start_time, cabinet_number, name, event_type, duration, is_active=True):
+    def __init__(self, date, start_time, cabinet_number, event_type, duration, is_active=True):
         self.date = date
         self.start_time = start_time
         self.cabinet_number = cabinet_number
-        self.name = name
         self.event_type = event_type
         self.duration = duration
         self.is_active = is_active
 
     @property
     def end_time(self):
-        """Обчислює кінець заходу, додаючи тривалість до часу початку"""
+        """Обчислює кінець заходу"""
         if self.start_time and self.duration is not None:
-            # Якщо start_time прийшов як timedelta, конвертуємо в time
             if isinstance(self.start_time, timedelta):
                 total_seconds = self.start_time.total_seconds()
                 hours = int(total_seconds // 3600)
@@ -39,6 +37,7 @@ class EventRepository:
         self.connection = connection
         self.current_user = current_user
 
+    # ===== Отримати всі активні заходи =====
     def get_all_events(self):
         with self.connection.cursor(dictionary=True) as cursor:
             cursor.callproc('GetAllEvents')
@@ -49,54 +48,58 @@ class EventRepository:
                         row['Дата'],
                         row['Час_початку'],
                         row['Номер_кабінету'],
-                        row.get('Назва'),
-                        row.get('Тип'),
+                        row['Тип'],
                         row['Тривалість'],
                         row['IsDeleted'] == 0
                     ))
             return events
 
+    # ===== Додати захід =====
     def add_event(self, event):
         with self.connection.cursor() as cursor:
             cursor.callproc('AddEvent', [
                 event.date,
                 event.start_time,
                 event.cabinet_number,
-                event.type,
+                event.event_type,
                 event.duration,
                 self.current_user
             ])
             self.connection.commit()
 
+    # ===== Оновити захід =====
     def update_event(self, event):
         with self.connection.cursor() as cursor:
             cursor.callproc('UpdateEvent', [
                 event.date,
                 event.start_time,
                 event.cabinet_number,
-                event.name,
+                event.event_type,
                 event.duration,
                 self.current_user
             ])
             self.connection.commit()
 
+    # ===== Логічно видалити =====
     def delete_event(self, date, start_time, cabinet_number):
         with self.connection.cursor() as cursor:
             cursor.callproc('DeleteEvent', [date, start_time, cabinet_number, self.current_user])
             self.connection.commit()
 
+    # ===== Відновити =====
     def restore_event(self, date, start_time, cabinet_number):
         with self.connection.cursor() as cursor:
             cursor.callproc('RestoreEvent', [date, start_time, cabinet_number, self.current_user])
             self.connection.commit()
 
+    # ===== Отримати всі активні заходи через VIEW =====
     def get_active_events(self):
-        """Отримати всі активні заходи (через view ActiveEvents)"""
         query = "SELECT * FROM ActiveEvents"
         with self.connection.cursor(dictionary=True) as cursor:
             cursor.execute(query)
             return cursor.fetchall()
 
+    # ===== Деталі заходу =====
     def get_event_details(self, date, start_time, cabinet_number):
         query = """
         SELECT *
@@ -111,8 +114,7 @@ class EventRepository:
                     row['Дата'],
                     row['Час_початку'],
                     row['Номер_кабінету'],
-                    row.get('Назва'),
-                    row.get('Тип'),
+                    row['Тип'],
                     row['Тривалість'],
                     True
                 )
