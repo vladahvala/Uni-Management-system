@@ -2,7 +2,10 @@ from repositories.student_repository import StudentRepository, Student
 from repositories.staff_repository import StaffRepository, Staff
 from repositories.group_repository import GroupRepository, Group
 from repositories.cabinet_repository import CabinetRepository, Cabinet
+from repositories.event_repository import EventRepository, Event
 import mysql.connector
+from datetime import datetime, timedelta, date, time
+
 
 def create_connection():
     return mysql.connector.connect(
@@ -18,6 +21,7 @@ def main():
     staff_repo = StaffRepository(connection)
     group_repo = GroupRepository(connection)
     cabinet_repo = CabinetRepository(connection)
+    event_repo = EventRepository(connection, current_user="test_user")
 
     #---------------------------------Student------------------------------
     # # --- 1. Тест get_all_students ---
@@ -192,40 +196,70 @@ def main():
 
 
     #---------------------------------Cabinet------------------------------
-    # --- 1. Тест get_all_cabinets ---
-    print("== Усі кабінети ==")
-    cabinets = cabinet_repo.get_all_cabinets()
-    for c in cabinets:
-        print(f"Номер: {c.number}, Поверх: {c.floor}, Кількість місць: {c.capacity}")
+    # # --- 1. Тест get_all_cabinets ---
+    # print("== Усі кабінети ==")
+    # cabinets = cabinet_repo.get_all_cabinets()
+    # for c in cabinets:
+    #     print(f"Номер: {c.number}, Поверх: {c.floor}, Кількість місць: {c.capacity}")
 
-    # --- 2. Тест get_cabinet_by_number ---
-    print("\n== Пошук кабінету ==")
-    cabinet_number = 101  # заміни на існуючий номер
-    cab = cabinet_repo.get_cabinet_by_number(cabinet_number)
-    if cab:
-        print(f"Знайдено: Кабінет {cab.number}, поверх {cab.floor}")
+    # # --- 2. Тест get_cabinet_by_number ---
+    # print("\n== Пошук кабінету ==")
+    # cabinet_number = 101  # заміни на існуючий номер
+    # cab = cabinet_repo.get_cabinet_by_number(cabinet_number)
+    # if cab:
+    #     print(f"Знайдено: Кабінет {cab.number}, поверх {cab.floor}")
 
-        # --- 3. Тест get_cabinet_details ---
-        print("\n== Деталі кабінету ==")
-        details = cabinet_repo.get_cabinet_details(cabinet_number)
-        if details:
-            print("Номер:", details.number)
-            print("Поверх:", details.floor)
-            print("Кількість місць:", details.capacity)
-            if details.university_name:
-                print("Університет:", details.university_name)
-            if hasattr(details, 'responsible_person') and details.responsible_person:
-                print("Відповідальний співробітник:", details.responsible_person)
-        else:
-            print("Деталі кабінету не знайдено.")
+    #     # --- 3. Тест get_cabinet_details ---
+    #     print("\n== Деталі кабінету ==")
+    #     details = cabinet_repo.get_cabinet_details(cabinet_number)
+    #     if details:
+    #         print("Номер:", details.number)
+    #         print("Поверх:", details.floor)
+    #         print("Кількість місць:", details.capacity)
+    #         if details.university_name:
+    #             print("Університет:", details.university_name)
+    #         if hasattr(details, 'responsible_person') and details.responsible_person:
+    #             print("Відповідальний співробітник:", details.responsible_person)
+    #     else:
+    #         print("Деталі кабінету не знайдено.")
+    # else:
+    #     print("Кабінет не знайдено.")
+
+    # # --- 4. Тест get_active_cabinets ---
+    # print("\n== Активні кабінети ==")
+    # active_cabinets = cabinet_repo.get_active_cabinets()
+    # for c in active_cabinets:
+    #     print(f"Номер: {c['Номер']}, Поверх: {c['Поверх']}, Кількість місць: {c.get('Кількість_місць')}")
+
+
+    #---------------------------------Events------------------------------
+    # --- 1. Тест get_all_events ---
+    print("== Усі заходи ==")
+    events = event_repo.get_all_events()
+    for e in events:
+        print(f"{e.date} {e.start_time} | Кабінет: {e.cabinet_number} | Назва: {e.name} | Тип: {e.event_type} | Кінець: {e.end_time}")
+
+    # --- 2. Тест get_event_details ---
+    print("\n== Деталі заходу ==")
+    test_date = date(2025, 10, 23)          # постав свою дату
+    test_start_time = time(10, 0)            # час початку
+    test_cabinet = 101                       # номер кабінету
+    details = event_repo.get_event_details(test_date, test_start_time, test_cabinet)
+    if details:
+        print(f"Дата: {details.date}")
+        print(f"Час початку: {details.start_time}")
+        print(f"Кінець: {details.end_time}")
+        print(f"Кабінет: {details.cabinet_number}")
+        print(f"Тип: {details.event_type}")
+        print(f"Тривалість: {details.duration} хв")
     else:
-        print("Кабінет не знайдено.")
+        print("Деталі заходу не знайдено.")
 
-    # --- 4. Тест get_active_cabinets ---
-    print("\n== Активні кабінети ==")
-    active_cabinets = cabinet_repo.get_active_cabinets()
-    for c in active_cabinets:
-        print(f"Номер: {c['Номер']}, Поверх: {c['Поверх']}, Кількість місць: {c.get('Кількість_місць')}")
+    # --- 6. Тест перегляду активних заходів ---
+    print("\n== Активні заходи ==")
+    active_events = event_repo.get_active_events()
+    for e in active_events:
+        print(f"{e['Дата']} {e['Час_початку']} | Кабінет: {e['Номер_кабінету']} | Назва: {e.get('Назва')} | Тип: {e.get('Тип')}")
 
 
     connection.close()

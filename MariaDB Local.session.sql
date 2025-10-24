@@ -1008,6 +1008,7 @@ WHERE c.IsDeleted = 0;
 
 
 -- Захід
+-- ====== Додаткові колонки для логічного видалення та аудиту =====
 ALTER TABLE Захід
 ADD COLUMN IsDeleted TINYINT(1) NOT NULL DEFAULT 0;
 
@@ -1015,36 +1016,133 @@ ALTER TABLE Захід
 ADD COLUMN UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 ADD COLUMN UpdatedBy VARCHAR(100) NULL;
 
-DROP PROCEDURE IF EXISTS DeleteEvent;
+-- ====== Додавання заходу ======
+DROP PROCEDURE IF EXISTS AddEvent;
 
-CREATE PROCEDURE DeleteEvent(IN pDate DATE, IN pTime TIME, IN pCabinet INT, IN pUser VARCHAR(100))
+CREATE PROCEDURE AddEvent(
+    IN pDate DATE,
+    IN pStartTime TIME,
+    IN pCabinet INT,
+    IN pType VARCHAR(255),
+    IN pDuration INT,
+    IN pUser VARCHAR(100)
+)
+BEGIN
+    INSERT INTO Захід (Дата, Час_початку, Номер_кабінету, Тип, Тривалість, UpdatedBy)
+    VALUES (pDate, pStartTime, pCabinet, pType, pDuration, pUser);
+END;
+
+-- ====== Оновлення заходу ======
+DROP PROCEDURE IF EXISTS UpdateEvent;
+CREATE PROCEDURE UpdateEvent(
+    IN pDate DATE,
+    IN pStartTime TIME,
+    IN pEndTime TIME,
+    IN pCabinet INT,
+    IN pName VARCHAR(255),
+    IN pUser VARCHAR(100)
+)
+BEGIN
+    UPDATE Захід
+    SET Час_кінця = pEndTime,
+        Назва = pName,
+        UpdatedAt = NOW(),
+        UpdatedBy = pUser
+    WHERE Дата = pDate
+      AND Час_початку = pStartTime
+      AND Номер_кабінету = pCabinet;
+END;
+
+-- ====== Логічне видалення заходу ======
+DROP PROCEDURE IF EXISTS DeleteEvent;
+CREATE PROCEDURE DeleteEvent(
+    IN pDate DATE,
+    IN pStartTime TIME,
+    IN pCabinet INT,
+    IN pUser VARCHAR(100)
+)
 BEGIN
     UPDATE Захід
     SET IsDeleted = 1,
         UpdatedAt = NOW(),
         UpdatedBy = pUser
     WHERE Дата = pDate
-      AND Час_початку = pTime
+      AND Час_початку = pStartTime
       AND Номер_кабінету = pCabinet;
 END;
 
+-- ====== Відновлення заходу ======
 DROP PROCEDURE IF EXISTS RestoreEvent;
-
-CREATE PROCEDURE RestoreEvent(IN pDate DATE, IN pTime TIME, IN pCabinet INT, IN pUser VARCHAR(100))
+CREATE PROCEDURE RestoreEvent(
+    IN pDate DATE,
+    IN pStartTime TIME,
+    IN pCabinet INT,
+    IN pUser VARCHAR(100)
+)
 BEGIN
     UPDATE Захід
     SET IsDeleted = 0,
         UpdatedAt = NOW(),
         UpdatedBy = pUser
     WHERE Дата = pDate
-      AND Час_початку = pTime
+      AND Час_початку = pStartTime
       AND Номер_кабінету = pCabinet;
 END;
 
-CREATE VIEW ActiveEvents AS
+-- ====== Отримання всіх заходів ======
+DROP PROCEDURE IF EXISTS GetAllEvents;
+CREATE PROCEDURE GetAllEvents()
+BEGIN
+    SELECT *
+    FROM Захід
+    WHERE IsDeleted = 0;
+END;
+
+-- ====== Отримання заходу за ключем (дата + час + кабінет) ======
+DROP PROCEDURE IF EXISTS GetEventByKey;
+CREATE PROCEDURE GetEventByKey(
+    IN pDate DATE,
+    IN pStartTime TIME,
+    IN pCabinet INT
+)
+BEGIN
+    SELECT *
+    FROM Захід
+    WHERE IsDeleted = 0
+      AND Дата = pDate
+      AND Час_початку = pStartTime
+      AND Номер_кабінету = pCabinet;
+END;
+
+-- ====== Активні заходи (VIEW) ======
+CREATE OR REPLACE VIEW ActiveEvents AS
 SELECT *
 FROM Захід
 WHERE IsDeleted = 0;
+
+-- ====== Деталі заходу ======
+CREATE OR REPLACE VIEW EventDetails AS
+SELECT 
+    e.Дата,
+    e.Час_початку,
+    e.Номер_кабінету,
+    e.Тип,
+    e.Тривалість,
+    c.Поверх AS Кабінет_поверх,
+    c.Кількість_місць AS Кількість_місць,
+    u.ID AS Університет_ID,
+    u.Назва AS Університет,
+    l.ПІБ AS Відповідальний_співробітник
+FROM Захід e
+LEFT JOIN Кабінет c ON e.Номер_кабінету = c.Номер
+LEFT JOIN Університет u ON c.ID_університету = u.ID
+LEFT JOIN Член_персоналу s ON c.Номер = s.Номер_кабінету
+LEFT JOIN Людина l ON s.Паспорт = l.Паспорт
+WHERE e.IsDeleted = 0;
+
+
+
+CALL AddEvent('2025-10-25', '10:00:00', 101, 'Лекція', 90, 'test_user');
 
 
 -- Пара
