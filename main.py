@@ -1,103 +1,67 @@
-from repositories.student_repository import StudentRepository, Student
-from repositories.staff_repository import StaffRepository, Staff
-from repositories.group_repository import GroupRepository, Group
-from repositories.cabinet_repository import CabinetRepository, Cabinet
-from repositories.event_repository import EventRepository, Event
-from repositories.class_repository import ClassRepository, Class
+from repositories.student_repository import Student
+from repositories.staff_repository import Staff
+from repositories.group_repository import Group
+from repositories.cabinet_repository import Cabinet
+from repositories.event_repository import Event
+from repositories.class_repository import Class
 from unit_of_work import UnitOfWork
 import mysql.connector
 
-def main():
+def demo_unit_of_work():
     conn = mysql.connector.connect(
         host="localhost",
         user="root",
         password="14768967H&ab",
         database="university"
     )
-    try:
-        # Очистимо тестові дані перед початком
-        with conn.cursor() as cursor:
-            cursor.execute("DELETE FROM Студент WHERE Паспорт = %s", ("TST123",))
-            cursor.execute("DELETE FROM Людина WHERE Паспорт = %s", ("TST123",))
-            cursor.execute("DELETE FROM Член_персоналу WHERE Паспорт = %s", ("TST456",))
-            cursor.execute("DELETE FROM Людина WHERE Паспорт = %s", ("TST456",))
+
+     # --- Видалення через прямі SQL-запити ---
+    with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM Студент WHERE Паспорт = %s", ("DEMO123",))
+            cursor.execute("DELETE FROM Людина WHERE Паспорт = %s", ("DEMO123",))
+            cursor.execute("DELETE FROM Член_персоналу WHERE Паспорт = %s", ("DEMO456",))
+            cursor.execute("DELETE FROM Людина WHERE Паспорт = %s", ("DEMO456",))
+            cursor.execute("DELETE FROM Група WHERE Номер = %s", (888,))
+            cursor.execute("DELETE FROM Кабінет WHERE Номер = %s", (888,))
+            cursor.execute("""
+                DELETE FROM Захід
+                WHERE Дата = %s AND Час_початку = %s AND Номер_кабінету = %s
+            """, ("2025-10-26", "09:00", 101))
+            cursor.execute("""
+                DELETE FROM Пара
+                WHERE Дата = %s AND Час_початку = %s AND Номер_кабінету = %s
+            """, ("2025-10-26", "11:00", 101))
             conn.commit()
+            print("Усі додані записи видалені успішно")
 
-        # --- Тест UnitOfWork ---
-        with UnitOfWork(conn, current_user="test_user") as uow:
-            # 1. Додавання студента
-            student = Student(
-                passport="TST123",
-                pib="Тест Студент",
-                course=2,
-                form="денна",
-                group_number=101,
-                university_id=1,
-                university_name="Київський національний університет"
-            )
+    try:
+        with UnitOfWork(conn, current_user="demo_user") as uow:
+            # --- Додавання об'єктів ---
+            student = Student("DEMO123", "Демо Студент", 1, "денна", 101, 1, "иївський національний університет")
             uow.students.add_student(student)
-            fetched_student = uow.students.get_student_by_passport("TST123")
-            assert fetched_student is not None
-            print("✅ Додавання студента пройшло успішно")
 
-            # 2. Додавання члена персоналу
-            staff_member = Staff(
-                passport="TST456",
-                pib="Тест Персонал",
-                salary=15000,
-                cabinet=101,
-                university_id=1,
-                university_name="Київський національний університет"
-            )
+            staff_member = Staff("DEMO456", "Демо Персонал", 12000, 101, 1, "Київський національний університет")
             uow.staff.add_staff(staff_member)
-            fetched_staff = uow.staff.get_staff_by_passport("TST456")
-            assert fetched_staff is not None
-            print("✅ Додавання члена персоналу пройшло успішно")
 
-            # 3. Оновлення студента
-            student.course = 3
-            uow.students.update_student(student)
-            updated_student = uow.students.get_student_by_passport("TST123")
-            assert updated_student.course == 3
-            print("✅ Оновлення студента пройшло успішно")
+            group = Group(888, 20, "Демо Група", 1, "Київський національний університет")
+            uow.groups.add_group(group)
 
-            # 4. Оновлення персоналу
-            staff_member.salary = 16000
-            uow.staff.update_staff(staff_member)
-            updated_staff = uow.staff.get_staff_by_passport("TST456")
-            assert updated_staff.salary == 16000
-            print("✅ Оновлення члена персоналу пройшло успішно")
+            cabinet = Cabinet(888, 1, 40, "Лекції", 1)
+            uow.cabinets.add_cabinet(cabinet)
 
-            # 5. Видалення студента
-            uow.students.delete_student("TST123")
-            deleted_student = uow.students.get_student_by_passport("TST123")
-            assert deleted_student is None
-            print("✅ Видалення студента пройшло успішно")
+            event = Event("2025-10-26", "09:00", 101, "Засідання", 60)
+            uow.events.add_event(event)
 
-            # 6. Видалення персоналу
-            uow.staff.delete_staff("TST456")
-            deleted_staff = uow.staff.get_staff_by_passport("TST456")
-            assert deleted_staff is None
-            print("✅ Видалення члена персоналу пройшло успішно")
+            class_ = Class("2025-10-26", "11:00", 101, "Демо Заняття", 90)
+            uow.classes.add_class(class_)
 
-            # 7. Відновлення студента
-            uow.students.restore_student("TST123")
-            restored_student = uow.students.get_student_by_passport("TST123")
-            assert restored_student is not None
-            print("✅ Відновлення студента пройшло успішно")
-
-            # 8. Відновлення персоналу
-            uow.staff.restore_staff("TST456")
-            restored_staff = uow.staff.get_staff_by_passport("TST456")
-            assert restored_staff is not None
-            print("✅ Відновлення члена персоналу пройшло успішно")
-
-            # --- Закомітимо всі зміни ---
+            # --- Commit змін ---
             uow.commit()
-            print("✅ UnitOfWork коміт успішний")
+            print("Усі зміни закомічені успішно")
+
     finally:
         conn.close()
 
 
 if __name__ == "__main__":
-    main()
+    demo_unit_of_work()

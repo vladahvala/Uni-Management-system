@@ -16,20 +16,21 @@ def test_student_repository(connection):
         pib="Марія Петрова",
         course=2,
         form="денна",
-        group_number=101,
-        university_id=1,
-        university_name="Київський національний університет"
+        group_number=104,       
+        university_id=3,       
+        university_name="Харківський національний університет"
     )
     repo.add_student(student)
+
 
     fetched = repo.get_student_by_passport("AA123498")
     assert fetched is not None
     assert fetched.pib == "Марія Петрова"
     assert fetched.course == 2
     assert fetched.form == "денна"
-    assert fetched.group_number == 101
-    assert fetched.university_id == 1
-    assert fetched.university_name == "Київський національний університет"
+    assert fetched.group_number == 104
+    assert fetched.university_id == 3
+    assert fetched.university_name == "Харківський національний університет"
     print("Тест додавання студента пройшов успішно")
 
     # --- 2. Оновлення даних ---
