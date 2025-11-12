@@ -1904,3 +1904,10 @@ ON Студент (Номер_групи);
 -- щоб швидко шукати по імені
 CREATE FULLTEXT INDEX idx_fulltext_name
 ON Людина (ПІБ);
+
+
+SELECT * FROM Пара;
+
+
+-- Порівняння із MongoDB
+-- Пара
